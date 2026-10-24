@@ -26,7 +26,11 @@ describe("S4 rama activa", () => {
     const parsed = minimal();
 
     expect(parsed.report.activeBranchLength).toBe(11);
-    expect(parsed.events).toHaveLength(12);
+    // 12 entries plus the two part events derived from `a1` (thinking + toolCall).
+    expect(parsed.events).toHaveLength(14);
+    const parts = parsed.events.filter((event) => event.id.includes("#p"));
+    expect(parts.map((event) => event.onActiveBranch)).toEqual([true, true]);
+    expect(parts.every((event) => event.parentId === "ev:pi:test-session-01:a1")).toBe(true);
   });
 
   it("deja la cabecera fuera del arbol", () => {

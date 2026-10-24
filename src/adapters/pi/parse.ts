@@ -98,7 +98,14 @@ function roleOf(entry: Record<string, unknown>, type: string): Role {
   return ROLE_BY_MESSAGE_ROLE[role] ?? "unknown";
 }
 
-function kindOf(type: string): EventKind {
+function kindOf(entry: Record<string, unknown>, type: string): EventKind {
+  if (type === "message") {
+    const message = asRecord(entry["message"]);
+    if (message !== null && asString(message["role"]) === "toolResult") {
+      return "tool_result";
+    }
+    return "message";
+  }
   return KIND_BY_TYPE[type] ?? "unknown";
 }
 
@@ -170,12 +177,102 @@ function toolNameOf(entry: Record<string, unknown>, type: string): string | null
   return null;
 }
 
+function toolCallIdOf(entry: Record<string, unknown>, type: string): string | null {
+  if (type !== "message") {
+    return null;
+  }
+  const message = asRecord(entry["message"]);
+  if (message === null) {
+    return null;
+  }
+  const direct = asString(message["toolCallId"]);
+  if (direct !== null) {
+    return direct;
+  }
+  const content = message["content"];
+  if (!Array.isArray(content)) {
+    return null;
+  }
+  for (const part of content) {
+    const record = asRecord(part);
+    if (record !== null && asString(record["type"]) === "toolCall") {
+      const id = asString(record["toolCallId"]);
+      if (id !== null) {
+        return id;
+      }
+    }
+  }
+  return null;
+}
+
 function isErrorOf(entry: Record<string, unknown>, type: string): boolean {
   if (type !== "message") {
     return false;
   }
   const message = asRecord(entry["message"]);
   return message !== null && message["isError"] === true;
+}
+
+/**
+ * Derived child events for the non-text parts of a message, in source order.
+ *
+ * Text stays in the message's own content; `thinking`, `toolCall` and `image`
+ * parts split into `reasoning`, `tool_call` and `attachment` events. Images are
+ * referenced, never inlined: their event text is empty (S15). Part types with
+ * no verified contract are not invented here; they stay recoverable in `raw`.
+ */
+interface PartEventSpec {
+  readonly partIndex: number;
+  readonly kind: EventKind;
+  readonly toolName: string | null;
+  readonly toolCallId: string | null;
+  readonly text: string;
+}
+
+function partSpecsOf(entry: Record<string, unknown>, type: string): PartEventSpec[] {
+  if (type !== "message") {
+    return [];
+  }
+  const message = asRecord(entry["message"]);
+  const content = message === null ? null : message["content"];
+  if (!Array.isArray(content)) {
+    return [];
+  }
+  const specs: PartEventSpec[] = [];
+  for (let index = 0; index < content.length; index += 1) {
+    const record = asRecord(content[index]);
+    if (record === null) {
+      continue;
+    }
+    const partType = asString(record["type"]);
+    if (partType === "thinking") {
+      specs.push({
+        partIndex: index,
+        kind: "reasoning",
+        toolName: null,
+        toolCallId: null,
+        text: asString(record["thinking"]) ?? "",
+      });
+    } else if (partType === "toolCall") {
+      const arguments_ = record["arguments"];
+      specs.push({
+        partIndex: index,
+        kind: "tool_call",
+        toolName: asString(record["toolName"]),
+        toolCallId: asString(record["toolCallId"]),
+        text: arguments_ === undefined ? "" : canonicalJson(arguments_),
+      });
+    } else if (partType === "image") {
+      specs.push({
+        partIndex: index,
+        kind: "attachment",
+        toolName: null,
+        toolCallId: null,
+        text: "",
+      });
+    }
+  }
+  return specs;
 }
 
 function timestampOf(entry: Record<string, unknown>): string | null {
@@ -446,17 +543,22 @@ export function parsePiSessionText(text: string, options: ParseOptions = {}): Pa
 
   const events: EventRecord[] = [];
   const content: ContentRecord[] = [];
+  let partEvents = 0;
 
   for (const candidate of candidates) {
     const ref = { lineNumber: candidate.lineNumber, sha256: candidate.hash };
+    const role = roleOf(candidate.entry, candidate.type);
+    const kind = kindOf(candidate.entry, candidate.type);
     events.push({
       id: candidate.id,
       sessionId,
       parentId: tree.parentOf.get(candidate.id) ?? null,
       timestamp: timestampOf(candidate.entry),
-      role: roleOf(candidate.entry, candidate.type),
-      kind: kindOf(candidate.type),
+      role,
+      kind,
       toolName: toolNameOf(candidate.entry, candidate.type),
+      toolCallId: toolCallIdOf(candidate.entry, candidate.type),
+      partIndex: null,
       isError: isErrorOf(candidate.entry, candidate.type),
       onActiveBranch: tree.onBranch.has(candidate.id),
       customType: asString(candidate.entry["customType"]),
@@ -468,11 +570,40 @@ export function parsePiSessionText(text: string, options: ParseOptions = {}): Pa
       redacted: false,
       raw: ref,
     });
+
+    // Part expansion happens after tree resolution, so the tree never sees
+    // derived children: they inherit the message's own branch membership.
+    for (const spec of partSpecsOf(candidate.entry, candidate.type)) {
+      const childId = `${candidate.id}#p${String(spec.partIndex)}`;
+      events.push({
+        id: childId,
+        sessionId,
+        parentId: candidate.id,
+        timestamp: timestampOf(candidate.entry),
+        role,
+        kind: spec.kind,
+        toolName: spec.toolName,
+        toolCallId: spec.toolCallId,
+        partIndex: spec.partIndex,
+        isError: false,
+        onActiveBranch: tree.onBranch.has(candidate.id),
+        customType: null,
+        raw: ref,
+      });
+      content.push({
+        eventId: childId,
+        text: spec.text,
+        redacted: false,
+        raw: ref,
+      });
+      partEvents += 1;
+    }
   }
 
   const report: ParseReport = {
     totalLines: raw.length,
-    parsed: events.length,
+    parsedLines: parsedEntries.length,
+    partEvents,
     rawOnly,
     malformed,
     blankLines,

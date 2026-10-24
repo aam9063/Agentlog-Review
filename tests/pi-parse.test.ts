@@ -23,11 +23,12 @@ describe("S2 identidad de conteo", () => {
     const text = fixture("minimal.jsonl");
     const { report } = parsePiSessionText(text);
 
-    expect(report.parsed).toBe(12);
+    expect(report.parsedLines).toBe(12);
+    expect(report.partEvents).toBe(2);
     expect(report.rawOnly).toBe(0);
     expect(report.malformed).toBe(0);
     expect(report.totalLines).toBe(nonBlankLineCount(text));
-    expect(report.parsed + report.rawOnly + report.malformed).toBe(report.totalLines);
+    expect(report.parsedLines + report.rawOnly + report.malformed).toBe(report.totalLines);
   });
 
   it("cuenta lineas vacias aparte y no las trata como datos", () => {
@@ -209,5 +210,135 @@ describe("S5 determinismo", () => {
 
   it("canoniza las claves para que el orden no cambie el hash", () => {
     expect(canonicalJson({ b: 1, a: 2 })).toBe(canonicalJson({ a: 2, b: 1 }));
+  });
+
+  it("deriva el id de las partes del id del mensaje mas el indice de la parte", () => {
+    const first = parsePiSessionText(fixture("parts.jsonl")).events.map((event) => event.id);
+    const second = parsePiSessionText(fixture("parts.jsonl")).events.map((event) => event.id);
+
+    expect(first).toEqual(second);
+    expect(first.filter((id) => id.includes("#p"))).toEqual([
+      "ev:pi:test-session-parts:a1#p0",
+      "ev:pi:test-session-parts:a1#p2",
+      "ev:pi:test-session-parts:a1#p3",
+      "ev:pi:test-session-parts:r1#p1",
+    ]);
+  });
+});
+
+describe("S12/S13/S15 partes de mensaje", () => {
+  function parts(): ParsedSession {
+    return parsePiSessionText(fixture("parts.jsonl"));
+  }
+
+  it("S12: emite el evento del mensaje solo con el texto de las partes text", () => {
+    const parsed = parts();
+    const message = parsed.events.find((event) => event.id.endsWith(":a1"));
+
+    expect(message?.kind).toBe("message");
+    expect(parsed.content.find((item) => item.eventId === message?.id)?.text).toBe("Aqui esta la lista.");
+  });
+
+  it("S15: el texto del mensaje no incluye el razonamiento ni la imagen", () => {
+    const parsed = parts();
+    const message = parsed.events.find((event) => event.id.endsWith(":a1"));
+    const text = parsed.content.find((item) => item.eventId === message?.id)?.text ?? "";
+
+    expect(text).not.toContain("voy a listar");
+    expect(text).not.toContain("<ref-sintetico>");
+  });
+
+  it("S12: la parte thinking produce un hijo reasoning con id, padre e indice", () => {
+    const parsed = parts();
+    const reasoning = parsed.events.find((event) => event.id === "ev:pi:test-session-parts:a1#p0");
+
+    expect(reasoning?.kind).toBe("reasoning");
+    expect(reasoning?.parentId).toBe("ev:pi:test-session-parts:a1");
+    expect(reasoning?.partIndex).toBe(0);
+    expect(reasoning?.toolCallId).toBeNull();
+    expect(reasoning?.role).toBe("agent");
+    expect(parsed.content.find((item) => item.eventId === reasoning?.id)?.text).toBe("voy a listar");
+  });
+
+  it("S12: la parte toolCall produce un hijo tool_call con nombre, id de llamada y argumentos canonicos", () => {
+    const parsed = parts();
+    const call = parsed.events.find((event) => event.id === "ev:pi:test-session-parts:a1#p2");
+
+    expect(call?.kind).toBe("tool_call");
+    expect(call?.parentId).toBe("ev:pi:test-session-parts:a1");
+    expect(call?.partIndex).toBe(2);
+    expect(call?.toolName).toBe("read");
+    expect(call?.toolCallId).toBe("call_9");
+    expect(parsed.content.find((item) => item.eventId === call?.id)?.text).toBe('{"path":"README.md"}');
+  });
+
+  it("S12/S15: la parte image produce un hijo attachment sin bytes", () => {
+    const parsed = parts();
+    const attachment = parsed.events.find((event) => event.id === "ev:pi:test-session-parts:a1#p3");
+
+    expect(attachment?.kind).toBe("attachment");
+    expect(attachment?.parentId).toBe("ev:pi:test-session-parts:a1");
+    expect(attachment?.partIndex).toBe(3);
+    expect(parsed.content.find((item) => item.eventId === attachment?.id)?.text).toBe("");
+  });
+
+  it("S13: el toolResult se emite como tool_result conservando toolName y toolCallId", () => {
+    const parsed = parts();
+    const result = parsed.events.find((event) => event.id.endsWith(":r1"));
+
+    expect(result?.kind).toBe("tool_result");
+    expect(result?.role).toBe("tool");
+    expect(result?.toolName).toBe("read");
+    expect(result?.toolCallId).toBe("call_9");
+    expect(parsed.content.find((item) => item.eventId === result?.id)?.text).toBe("# Demo");
+  });
+
+  it("S13/S15: la parte image dentro del toolResult produce su attachment", () => {
+    const parsed = parts();
+    const attachment = parsed.events.find((event) => event.id === "ev:pi:test-session-parts:r1#p1");
+
+    expect(attachment?.kind).toBe("attachment");
+    expect(attachment?.parentId).toBe("ev:pi:test-session-parts:r1");
+    expect(attachment?.partIndex).toBe(1);
+    expect(parsed.content.find((item) => item.eventId === attachment?.id)?.text).toBe("");
+  });
+
+  it("S12: los hijos heredan la pertenencia a la rama activa del mensaje", () => {
+    const parsed = parts();
+    const message = parsed.events.find((event) => event.id.endsWith(":a1"));
+    const children = parsed.events.filter((event) => event.id.startsWith("ev:pi:test-session-parts:a1#p"));
+
+    expect(message?.onActiveBranch).toBe(true);
+    expect(children.map((event) => event.onActiveBranch)).toEqual([true, true, true]);
+  });
+
+  it("S14: parsedLines cuenta entradas y partEvents cuenta los hijos derivados", () => {
+    const parsed = parts();
+    const { report } = parsed;
+
+    expect(report.parsedLines).toBe(5);
+    expect(report.partEvents).toBe(4);
+    expect(report.totalLines).toBe(5);
+    expect(report.parsedLines + report.rawOnly + report.malformed).toBe(report.totalLines);
+    expect(parsed.events.length).toBe(9);
+    expect(parsed.events.length).toBeGreaterThan(report.parsedLines);
+  });
+
+  it("S6: hay un registro de contenido por evento, incluidas las partes", () => {
+    const parsed = parts();
+
+    expect(parsed.content).toHaveLength(parsed.events.length);
+    const eventIds = new Set(parsed.events.map((event) => event.id));
+    for (const record of parsed.content) {
+      expect(eventIds.has(record.eventId)).toBe(true);
+    }
+  });
+
+  it("S5/S6: la parte comparte la referencia raw de su linea de origen", () => {
+    const parsed = parts();
+    const message = parsed.events.find((event) => event.id.endsWith(":a1"));
+    const child = parsed.events.find((event) => event.id === "ev:pi:test-session-parts:a1#p0");
+
+    expect(child?.raw).toEqual(message?.raw);
   });
 });

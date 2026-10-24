@@ -30,6 +30,7 @@ export type EventKind =
   | "tool_call"
   | "tool_result"
   | "reasoning"
+  | "attachment"
   | "unknown";
 
 /** Where a piece of content came from, so `raw` stays the source of truth. */
@@ -59,6 +60,10 @@ export interface EventRecord {
   readonly role: Role;
   readonly kind: EventKind;
   readonly toolName: string | null;
+  /** Ligs a call with its result; set on the message event or its `toolCall` part. */
+  readonly toolCallId: string | null;
+  /** Index of the source part inside the message content, for part events only. */
+  readonly partIndex: number | null;
   readonly isError: boolean;
   readonly onActiveBranch: boolean;
   readonly customType: string | null;
@@ -95,8 +100,10 @@ export interface ParentFinding {
 export interface ParseReport {
   /** Every line that is not blank, and only those. */
   readonly totalLines: number;
-  /** Lines that produced an event. Entries with drift are counted here. */
-  readonly parsed: number;
+  /** Parsed ENTRIES (lines), not events: part events can exceed this count. */
+  readonly parsedLines: number;
+  /** Derived child events split out of message parts. */
+  readonly partEvents: number;
   /** JSON that parsed but declared no usable `type`, so it stays raw-only. */
   readonly rawOnly: number;
   readonly malformed: number;

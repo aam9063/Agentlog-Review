@@ -27,7 +27,7 @@ describe("CLI parse", () => {
     expect(result.status).toBe(0);
     expect(result.stderr).toBe("");
     expect(result.stdout).toContain("sesion: test-session-01 (pi formato v3)");
-    expect(result.stdout).toContain("eventos: 12 | rama activa: 11");
+    expect(result.stdout).toContain("eventos: 14 (2 partes) | rama activa: 11");
     expect(result.stdout).toContain("lineas: 12 = 12 parseadas + 0 solo-raw + 0 malformadas + 1 vacias");
   });
 
@@ -35,13 +35,24 @@ describe("CLI parse", () => {
     const result = run(["parse", fixture("minimal.jsonl"), "--json"]);
     const payload = JSON.parse(result.stdout) as {
       session: { id: string };
-      report: { totalLines: number; activeBranchLength: number };
+      report: { totalLines: number; parsedLines: number; partEvents: number; activeBranchLength: number };
     };
 
     expect(result.status).toBe(0);
     expect(payload.session.id).toBe("test-session-01");
     expect(payload.report.totalLines).toBe(12);
+    expect(payload.report.parsedLines).toBe(12);
+    expect(payload.report.partEvents).toBe(2);
     expect(payload.report.activeBranchLength).toBe(11);
+  });
+
+  it("resume la sesion con partes y distingue eventos de lineas parseadas", () => {
+    const result = run(["parse", fixture("parts.jsonl")]);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("eventos: 9 (4 partes) | rama activa: 4");
+    expect(result.stdout).toContain("lineas: 5 = 5 parseadas + 0 solo-raw + 0 malformadas + 1 vacias");
   });
 
   it("sale con 3 y explica el motivo cuando --strict encuentra deriva", () => {

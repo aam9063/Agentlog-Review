@@ -13,11 +13,15 @@
 - **S9** — Entradas `custom` de gentle-pi modeladas: `session-worktree/v1`, `session-change/v1`, `review-reminder-receipt/v1`. Los `kind: nudged` y `acknowledged` se toleran aunque el corpus no los traiga.
 - **S10** — El JSONL es la fuente de verdad. El HTML exportado no se parsea y no hay ejecución de código de la entrega.
 - **S11** — Stack: Node 24 + TypeScript estricto (`strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `erasableSyntaxOnly`). Sin dependencias de runtime en esta tarea.
+- **S12** — Eventos de parte. Un mensaje del agente con partes `thinking`, `toolCall` o `image` produce eventos hijos de tipo `reasoning`, `tool_call` y `attachment`. Cada hijo lleva `parentId` igual al id del evento del mensaje y hereda su pertenencia a la rama activa. Su id deriva del id del mensaje más el índice de la parte, así que es estable ante reordenamientos del archivo.
+- **S13** — Un mensaje con `role: toolResult` se emite como evento de tipo `tool_result`, conservando `toolName` y `toolCallId`, para poder ligar cada llamada con su resultado.
+- **S14** — La identidad de conteo se mide sobre líneas, no sobre eventos. `parsedLines` cuenta entradas del archivo; `events` cuenta filas normalizadas y puede ser mayor. Invariante: `totalLines = parsedLines + rawOnly + malformed`, y todo evento apunta a una línea real del `raw`.
+- **S15** — Las imágenes se referencian, no se incrustan: una parte `image` produce un evento `attachment` sin bytes y el texto del mensaje no la incluye.
 
 ## Tasks
 
 - **T1** — Lector JSONL sin pérdida, contratos de deriva, IDs deterministas y resolución de árbol. Specs: S1–S8. Ruta: inline. Commit: pendiente.
-- **T2** — Refinamiento semántico de eventos: partes de mensaje a `tool_call`, `tool_result` y `reasoning`; roles y errores. Specs: S8, S9. Ruta: pendiente. Commit: pendiente.
+- **T2** — Refinamiento semántico de eventos: partes de mensaje a `reasoning`, `tool_call` y `attachment`; `tool_result` propio; `toolCallId` para ligar llamada y resultado. Specs: S8, S9, S12–S15. Ruta: delegada. Commit: pendiente.
 - **T3** — Señales deterministas de sesión. Specs: por definir en su documento. Commit: pendiente.
 - **T4** — Análisis git del repositorio entregado con `execFile`. Commit: pendiente.
 - **T5** — Lectura segura de ZIP con `yauzl`, límites y rechazo de rutas fuera del destino. Commit: pendiente.
@@ -31,3 +35,4 @@
 - **L3** — «Todo en orden, continua con el stack»: ratifica los criterios de Puerta 1 y pasa a la decisión de stack.
 - **L4** — Decisión de stack: TypeScript, contra la recomendación de Python mínimo. Riesgo aceptado y registrado en el brief: Node no tiene binario único estable, así que la distribución al evaluador no técnico queda para fase 4.
 - **L5** — Corrección a S2 encontrada al implementar T1: la fórmula original del brief sumaba `deriva_declarada` como un cuarto sumando, lo que duplica las entradas con deriva porque ya están contadas como parseadas. Queda como cubo disjunto de tres términos sobre líneas no vacías.
+- **L6** — «si si»: autoriza T2 en la rama `feat/fase-1-t2-partes` creada desde `dev`. Se fijan S12–S15 antes de delegar, incluido el cambio de S14: `parsed` pasa a significar líneas parseadas y no eventos, porque las partes hacen que los eventos superen a las líneas y el cubo debe seguir cerrrando sobre el archivo.

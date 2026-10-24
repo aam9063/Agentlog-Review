@@ -44,7 +44,7 @@ describe("S7 deriva ruidosa", () => {
   it("no descarta la entrada con deriva: queda como evento", () => {
     const parsed = drift();
 
-    expect(parsed.report.parsed).toBe(4);
+    expect(parsed.report.parsedLines).toBe(4);
     expect(parsed.events.find((event) => event.id.endsWith(":m1"))).toBeDefined();
     expect(parsed.events.find((event) => event.id.endsWith(":u1"))).toBeDefined();
   });
@@ -85,10 +85,11 @@ describe("S7 deriva ruidosa", () => {
     const { report } = parsed;
 
     expect(report.totalLines).toBe(6);
-    expect(report.parsed).toBe(4);
+    expect(report.parsedLines).toBe(4);
+    expect(report.partEvents).toBe(0);
     expect(report.rawOnly).toBe(1);
     expect(report.malformed).toBe(1);
-    expect(report.parsed + report.rawOnly + report.malformed).toBe(report.totalLines);
+    expect(report.parsedLines + report.rawOnly + report.malformed).toBe(report.totalLines);
   });
 
   it("no inventa deriva cuando el formato coincide con el contrato", () => {
