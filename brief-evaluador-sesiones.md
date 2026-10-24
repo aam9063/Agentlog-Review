@@ -110,12 +110,13 @@ Lo que distingue a esta herramienta es cruzar la sesión con git: comprobar si e
 
 **Historial reconstruido desde la sesión.** Se siguen los comandos de git del agente en orden y se mantiene la rama actual como estado, a partir de `checkout`, `switch` y sus salidas. Así se obtienen las ramas creadas, los mensajes de commit, los merges y los pushes, y se contrasta con instrucciones del humano como "las features salen de dev". En la sesión de ejemplo salen 9 ramas, 42 commits (todos con mensaje convencional), 5 merges y 8 pushes. Ningún comando indica la rama de origen de forma explícita, así que ese dato exige seguir la rama actual. Todo este bloque es evidencia `reconstruido`: se reporta con su cadena de inferencia y nunca se agrega con git `observado`.
 
-Límites: no se ve lo que el humano hizo fuera del agente, las salidas largas pueden estar recortadas y un comando fallido no equivale a un commit hecho, por lo que hay que leer el código de salida.
+Límites: no se ve lo que el humano hizo fuera del agente, las salidas largas pueden estar recortadas y un comando fallido no equivale a un commit hecho. El brief pedía leer el código de salida para distinguirlos, pero **pi no emite código de salida**: en el fixture de 1.073 líneas hay cero ocurrencias de `exitCode`, `exit_code`, `exitStatus`, `statusCode` o `signal`, y el campo `details` de los resultados de herramienta lleva cargas propias de cada herramienta, no metadata de shell. La única señal de fallo que el formato sí emite es `message.isError`, que aparece 14 veces en el fixture.
 
 **Límites que debemos declarar**
 
 - Un squash o un rebase borra parte de la información; el informe lo marca como "señal reducida", no como mala práctica.
 - La evidencia de archivos de la sesión (`session-change`) también es parcial: está topada y el contenido de los subagentes vive en sesiones hijas. Se declara como parcial, nunca como ausencia de trabajo.
+- **El código de salida de los comandos no es capturable en pi.** Verificado el 23/10/2026: el formato no tiene campo de exit code en ninguna forma (`exitCode`, `exit_code`, `exitStatus`, `statusCode`, `signal`: cero ocurrencias en 1.073 líneas). El éxito o fracaso de un comando se reporta como `isError` y como texto de salida, nunca como número. Toda señal que la rúbrica quiera basar en códigos de salida, como la verificación de tests y builds o la confirmación de que un commit se hizo, se marca `no capturable` y no se puntúa por su ausencia.
 - Si el candidato entrega el código sin `.git`, se analiza la sesión y una instantánea del código (ver más abajo); el flujo de ramas y commits se reconstruye desde los comandos de git de la sesión.
 - Estas señales se muestran como banda de resultado separada (entrega y durabilidad) y no suman a la puntuación del proceso en la primera versión, igual que hace la rúbrica de Promptster.
 
