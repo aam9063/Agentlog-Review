@@ -239,6 +239,11 @@ function partSpecsOf(entry: Record<string, unknown>, type: string): PartEventSpe
     return [];
   }
   const specs: PartEventSpec[] = [];
+  // Real pi v3 writes the call identity on each toolCall part as `name`/`id`;
+  // some captures use `toolName`/`toolCallId` on the part, and some messages
+  // carry it at message level only. Fall back through all three shapes.
+  const messageToolName = message === null ? null : asString(message["toolName"]);
+  const messageToolCallId = message === null ? null : asString(message["toolCallId"]);
   for (let index = 0; index < content.length; index += 1) {
     const record = asRecord(content[index]);
     if (record === null) {
@@ -258,8 +263,8 @@ function partSpecsOf(entry: Record<string, unknown>, type: string): PartEventSpe
       specs.push({
         partIndex: index,
         kind: "tool_call",
-        toolName: asString(record["toolName"]),
-        toolCallId: asString(record["toolCallId"]),
+        toolName: asString(record["toolName"]) ?? asString(record["name"]) ?? messageToolName,
+        toolCallId: asString(record["toolCallId"]) ?? asString(record["id"]) ?? messageToolCallId,
         text: arguments_ === undefined ? "" : canonicalJson(arguments_),
       });
     } else if (partType === "image") {

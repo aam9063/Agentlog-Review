@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { canonicalJson, parsePiSessionText, sha256 } from "../src/adapters/pi/parse.ts";
+import { computeSessionSignals } from "../src/signals/session.ts";
 import type { ParsedSession } from "../src/model/types.ts";
 
 function fixture(name: string): string {
@@ -183,6 +184,46 @@ describe("S9 entradas custom de gentle-pi", () => {
 
     expect(kinds).toContain("custom");
     expect(kinds).toContain("custom_message");
+  });
+});
+
+describe("S12 identidad de herramienta en partes toolCall", () => {
+  it("copia toolName y toolCallId de la parte toolCall al evento hijo", () => {
+    const parsed = parsePiSessionText(fixture("parts.jsonl"));
+    const call = parsed.events.find((event) => event.id === "ev:pi:test-session-parts:a1#p2");
+
+    expect(call?.kind).toBe("tool_call");
+    expect(call?.toolName).toBe("read");
+    expect(call?.toolCallId).toBe("call_9");
+  });
+
+  it("copia la identidad de la llamada derivada del a1 de minimal", () => {
+    const parsed = parsePiSessionText(fixture("minimal.jsonl"));
+    const call = parsed.events.find((event) => event.id === "ev:pi:test-session-01:a1#p1");
+
+    expect(call?.kind).toBe("tool_call");
+    expect(call?.toolName).toBe("write");
+    expect(call?.toolCallId).toBe("call_1");
+  });
+
+  it("lee el nombre y el id que pi v3 real escribe en la parte (name/id)", () => {
+    // Forma observada en una sesion real de 1.073 lineas: la parte lleva
+    // "name" e "id", no "toolName"/"toolCallId". Sin esta lectura, las 374
+    // llamadas de esa sesion perdian nombre e id y todo quedaba sin emparejar.
+    const text = [
+      '{"type":"session","version":3,"id":"s-real","timestamp":"2026-09-28T15:00:00.000Z"}',
+      '{"type":"message","id":"a1","parentId":null,"timestamp":"2026-09-28T15:00:01.000Z","message":{"role":"assistant","content":[{"type":"toolCall","id":"call_real_1","name":"bash","arguments":{"command":"git status"}}],"stopReason":"toolUse"}}',
+      '{"type":"message","id":"r1","parentId":"a1","timestamp":"2026-09-28T15:00:02.000Z","message":{"role":"toolResult","toolCallId":"call_real_1","toolName":"bash","content":[{"type":"text","text":"ok"}],"isError":false}}',
+      "",
+    ].join("\n");
+    const parsed = parsePiSessionText(text);
+    const call = parsed.events.find((event) => event.kind === "tool_call");
+
+    expect(call?.toolName).toBe("bash");
+    expect(call?.toolCallId).toBe("call_real_1");
+    const signals = computeSessionSignals(parsed);
+    expect(signals.toolCallsByTool).toEqual({ bash: 1 });
+    expect(signals.unpairedToolCalls).toBe(0);
   });
 });
 
