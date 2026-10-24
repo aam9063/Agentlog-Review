@@ -1,0 +1,25 @@
+{
+  "name": "evaluador-sesiones",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Evaluador de sesiones agente-humano con evidencias citadas",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "evaluador": "./src/cli.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "parse": "node src/cli.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^24.9.2",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

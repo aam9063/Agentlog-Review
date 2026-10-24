@@ -1,0 +1,7 @@
+{"type":"session","version":3,"id":"test-session-branch","timestamp":"2026-01-02T09:00:00.000Z","cwd":"C:\\demo"}
+{"type":"model_change","id":"m1","parentId":null,"timestamp":"2026-01-02T09:00:01.000Z","provider":"nan","modelId":"glm5.3-flash"}
+{"type":"message","id":"u1","parentId":"m1","timestamp":"2026-01-02T09:01:00.000Z","message":{"role":"user","content":[{"type":"text","text":"primer intento"}]}}
+{"type":"message","id":"a1","parentId":"u1","timestamp":"2026-01-02T09:02:00.000Z","message":{"role":"assistant","content":[{"type":"text","text":"rama abandonada"}]}}
+{"type":"message","id":"u2","parentId":"u1","timestamp":"2026-01-02T09:03:00.000Z","message":{"role":"user","content":[{"type":"text","text":"mejor por otro lado"}]}}
+{"type":"message","id":"a2","parentId":"u2","timestamp":"2026-01-02T09:04:00.000Z","message":{"role":"assistant","content":[{"type":"text","text":"rama activa"}]}}
+{"type":"message","id":"x1","parentId":"ghost","timestamp":"2026-01-02T09:00:30.000Z","message":{"role":"user","content":[{"type":"text","text":"huerfano"}]}}

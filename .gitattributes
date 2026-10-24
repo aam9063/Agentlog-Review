@@ -1,0 +1,9 @@
+# LF everywhere: the raw sha256 of every session line is part of the
+# reproducible evidence, so a checkout must never change line endings.
+* text=auto eol=lf
+
+*.jsonl text eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary

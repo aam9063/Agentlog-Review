@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+out/
+
+# Real session files and candidate submissions never enter the repository.
+*.jsonl.local
+local/
+fixtures-private/
+submissions/
+
+*.log
+.DS_Store
+Thumbs.db

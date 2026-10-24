@@ -1,0 +1,6 @@
+{"type":"session","version":3,"id":"test-session-drift","timestamp":"2026-01-03T08:00:00.000Z","cwd":"C:\\demo"}
+{"type":"model_change","id":"m1","parentId":null,"timestamp":"2026-01-03T08:00:01.000Z","provider":"nan","modelId":"glm5.3-flash","futureField":"campo que el formato agrego despues"}
+{"type":"message","id":"u1","parentId":"m1","timestamp":"2026-01-03T08:00:02.000Z","message":{"role":"user","content":[{"type":"text","text":"hola"}],"brandNewField":true}}
+{"type":"hologram","id":"h1","parentId":"u1","timestamp":"2026-01-03T08:00:03.000Z"}
+{"hello":"world"}
+{"type":"message","id":"broken","parentId":"h1","timestamp":"2026-01-03T08:00:04.000Z"
