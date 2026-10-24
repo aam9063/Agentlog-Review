@@ -1,0 +1,5 @@
+{"type":"session","version":3,"id":"test-session-parts","timestamp":"2026-02-01T09:00:00.000Z","cwd":"C:\\demo"}
+{"type":"model_change","id":"m1","parentId":null,"timestamp":"2026-02-01T09:00:01.000Z","provider":"nan","modelId":"glm5.3-flash"}
+{"type":"message","id":"u1","parentId":"m1","timestamp":"2026-02-01T09:00:02.000Z","message":{"role":"user","content":[{"type":"text","text":"muestra la estructura"}]}}
+{"type":"message","id":"a1","parentId":"u1","timestamp":"2026-02-01T09:00:03.000Z","message":{"role":"assistant","content":[{"type":"thinking","thinking":"voy a listar"},{"type":"text","text":"Aqui esta la lista."},{"type":"toolCall","toolName":"read","toolCallId":"call_9","arguments":{"path":"README.md"}},{"type":"image","data":"<ref-sintetico>","mime":"image/png"}],"provider":"nan","model":"glm5.3-flash","stopReason":"toolUse"}}
+{"type":"message","id":"r1","parentId":"a1","timestamp":"2026-02-01T09:00:04.000Z","message":{"role":"toolResult","toolCallId":"call_9","toolName":"read","content":[{"type":"text","text":"# Demo"},{"type":"image","data":"<ref-sintetico>","mime":"image/png"}],"isError":false}}

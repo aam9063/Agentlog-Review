@@ -17,10 +17,10 @@ function summarize(parsed: ParsedSession): string {
   const lines = [
     `sesion: ${session.id} (${session.agent} formato ${version})`,
     `directorio: ${session.cwd ?? "<sin cwd>"}`,
-    `eventos: ${String(report.parsed)} | rama activa: ${String(report.activeBranchLength)}`,
+    `eventos: ${String(parsed.events.length)} (${String(report.partEvents)} partes) | rama activa: ${String(report.activeBranchLength)}`,
     `modelos: ${session.models.length === 0 ? "<ninguno>" : session.models.join(", ")}`,
     `deriva: ${String(report.drift.length)} | tipos sin contrato: ${String(report.unverifiedTypes.length)} | padres sin resolver: ${String(report.parentFindings.length)}`,
-    `lineas: ${String(report.totalLines)} = ${String(report.parsed)} parseadas + ${String(report.rawOnly)} solo-raw + ${String(report.malformed)} malformadas + ${String(report.blankLines)} vacias`,
+    `lineas: ${String(report.totalLines)} = ${String(report.parsedLines)} parseadas + ${String(report.rawOnly)} solo-raw + ${String(report.malformed)} malformadas + ${String(report.blankLines)} vacias`,
   ];
   return lines.join("\n");
 }
